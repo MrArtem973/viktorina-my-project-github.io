@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Quiz Battle</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0b0e14; color: white; display: flex; justify-content: center; margin: 0; min-height: 100vh; padding: 20px; }
+        .container { width: 100%; max-width: 1100px; text-align: center; }
+        .hidden { display: none !important; }
+        
+        /* Сетка категорий */
+        .game-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 20px; }
+        .category-col { background: rgba(255,255,255,0.03); border-radius: 12px; padding: 10px; border: 1px solid #1e2530; }
+        .cat-name { font-size: 1em; font-weight: bold; margin-bottom: 15px; color: #00d2ff; text-transform: uppercase; height: 40px; display: flex; align-items: center; justify-content: center; }
+        
+        /* Кнопки вопросов */
+        .q-btn { background: #161b22; color: #58a6ff; border: 2px solid #30363d; border-radius: 8px; padding: 12px; margin: 5px 0; cursor: pointer; font-size: 1.4em; width: 100%; transition: 0.2s; }
+        .q-btn:hover { border-color: #58a6ff; background: #1c2128; box-shadow: 0 0 10px rgba(88,166,255,0.3); }
+        .q-btn.used { opacity: 0.15; cursor: default; filter: grayscale(1); }
+
+        /* Модальное окно */
+        #modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(8px); }
+        .modal-content { background: #0d1117; padding: 30px; border-radius: 20px; max-width: 500px; width: 90%; border: 2px solid #30363d; }
+        
+        /* Варианты ответов */
+        .option-item { background: #161b22; padding: 15px; margin: 10px 0; border-radius: 8px; border: 1px solid #30363d; cursor: pointer; transition: 0.3s; text-align: left; font-size: 1.1em; }
+        .correct { background: #238636 !important; border-color: #2ea043 !important; color: white; }
+        .wrong { background: #da3633 !important; border-color: #f85149 !important; color: white; }
+
+        /* Счет */
+        .score-board { display: flex; justify-content: space-around; background: #161b22; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #30363d; font-size: 1.4em; font-weight: bold; }
+        .points-btns { margin-top: 25px; display: flex; justify-content: center; gap: 10px; border-top: 1px solid #30363d; padding-top: 20px; }
+        .points-btns button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        
+        input { padding: 12px; border-radius: 6px; border: 1px solid #30363d; margin: 10px; width: 200px; background: #0d1117; color: white; }
+        .btn-start { background: #238636; color: white; padding: 15px 45px; font-size: 1.2em; font-weight: bold; border-radius: 8px; cursor: pointer; border: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="setup">
+        <h1>🏆 Quiz Tournament</h1>
+        <p>Введите названия команд:</p>
+        <input type="text" id="t1I" placeholder="Команда 1">
+        <input type="text" id="t2I" placeholder="Команда 2">
+        <br><br>
+        <button class="btn-start" onclick="start()">Начать игру</button>
+    </div>
+
+    <div id="quiz" class="hidden">
+        <div class="score-board">
+            <div style="color: #2ea043;"><span id="n1"></span>: <span id="s1">0</span></div>
+            <div style="color: #f1c40f;"><span id="n2"></span>: <span id="s2">0</span></div>
+        </div>
+        <div class="game-grid" id="grid"></div>
+        <h2 id="final-win" class="hidden" style="color: #58a6ff; margin-top: 40px; font-size: 2.5em; text-transform: uppercase;"></h2>
+    </div>
+</div>
+
+<div id="modal" class="hidden">
+    <div class="modal-content">
+        <h3 id="modal-cat" style="color: #58a6ff; margin: 0; font-size: 0.9em; opacity: 0.8;"></h3>
+        <h2 id="modal-q" style="margin: 15px 0 25px 0;"></h2>
+        <div id="modal-opts"></div>
+        <div class="points-btns">
+            <button style="background: #238636; color: white;" id="btn-give-t1" onclick="givePoint(1)"></button>
+            <button style="background: #f1c40f; color: #000;" id="btn-give-t2" onclick="givePoint(2)"></button>
+            <button style="background: #30363d; color: white;" onclick="givePoint(0)">Пропуск</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const database = {
+        "Игры": [
+            {q: "Кто создал Minecraft?", a: "Маркус Перссон", o: ["Маркус Перссон", "Нотч", "Илон Маск"]},
+            {q: "Главный герой God of War?", a: "Кратос", o: ["Кратос", "Зевс", "Тор"]},
+            {q: "Жанр игры Dota 2?", a: "MOBA", o: ["RPG", "MOBA", "Шутер"]},
+            {q: "Валюта в Roblox?", a: "Robux", o: ["Coins", "Robux", "V-Bucks"]},
+            {q: "Синий еж из SEGA?", a: "Соник", o: ["Соник", "Наклз", "Тейлз"]},
+            {q: "Компания создавшая GTA?", a: "Rockstar", o: ["Ubisoft", "Rockstar", "EA"]},
+            {q: "В какой игре ищут предателя?", a: "Among Us", o: ["Among Us", "Rust", "Mafia"]},
+            {q: "Главный враг Марио?", a: "Боузер", o: ["Варио", "Боузер", "Пич"]},
+            {q: "Игра про выживание с динозаврами?", a: "ARK", o: ["ARK", "Rust", "The Forest"]},
+            {q: "Название консоли от Sony?", a: "PlayStation", o: ["Xbox", "PlayStation", "Switch"]}
+        ],
+        "Фильмы": [
+            {q: "Кто играл Железного человека?", a: "Роберт Дауни мл.", o: ["Том Круз", "Роберт Дауни мл.", "Брэд Питт"]},
+            {q: "Как зовут зеленого огра?", a: "Шрек", o: ["Халк", "Шрек", "Гринч"]},
+            {q: "Школа Гарри Поттера?", a: "Хогвартс", o: ["Хогвартс", "Оксфорд", "Азкабан"]},
+            {q: "Режиссер Титаника?", a: "Джеймс Кэмерон", o: ["Нолан", "Джеймс Кэмерон", "Спилберг"]},
+            {q: "Планета в Аватаре?", a: "Пандора", o: ["Пандора", "Марс", "Криптон"]},
+            {q: "Город Бэтмена?", a: "Готэм", o: ["Нью-Йорк", "Готэм", "Метрополис"]},
+            {q: "Злодей с Камнями Бесконечности?", a: "Танос", o: ["Локи", "Танос", "Ультрон"]},
+            {q: "Джек Воробей это...?", a: "Пират", o: ["Пират", "Ниндзя", "Рыцарь"]},
+            {q: "Как зовут Человека-паука?", a: "Питер Паркер", o: ["Питер Паркер", "Брюс Уэйн", "Кларк Кент"]},
+            {q: "Сколько частей Властелина Колец?", a: "3", o: ["3", "4", "5"]}
+        ],
+        "Технологии": [
+            {q: "Кто основал Apple?", a: "Стив Джобс", o: ["Стив Джобс", "Билл Гейтс", "Павел Дуров"]},
+            {q: "Операционка от Google?", a: "Android", o: ["iOS", "Android", "Windows"]},
+            {q: "Что такое Биткоин?", a: "Криптовалюта", o: ["Банк", "Криптовалюта", "Сайт"]},
+            {q: "Компания Илона Маска?", a: "Tesla", o: ["Tesla", "Apple", "Toyota"]},
+            {q: "Умная колонка Яндекса?", a: "Алиса", o: ["Сири", "Маруся", "Алиса"]},
+            {q: "Самый популярный видеохостинг?", a: "YouTube", o: ["TikTok", "YouTube", "Netflix"]},
+            {q: "Кто создал Facebook?", a: "Марк Цукерберг", o: ["Дуров", "Цукерберг", "Маск"]},
+            {q: "Беспроводная связь малого радиуса?", a: "Bluetooth", o: ["Wi-Fi", "Bluetooth", "LTE"]},
+            {q: "Как расшифровывается WWW?", a: "World Wide Web", o: ["World Wide Web", "World War West", "Work Wide Web"]},
+            {q: "Первый популярный смартфон?", a: "iPhone", o: ["Nokia", "iPhone", "Samsung"]}
+        ],
+        "Космос": [
+            {q: "Первый человек в космосе?", a: "Юрий Гагарин", o: ["Нил Армстронг", "Юрий Гагарин", "Титов"]},
+            {q: "Красная планета?", a: "Марс", o: ["Венера", "Марс", "Юпитер"]},
+            {q: "Ближайшая к нам звезда?", a: "Солнце", o: ["Сириус", "Солнце", "Полярная"]},
+            {q: "Самая большая планета?", a: "Юпитер", o: ["Сатурн", "Юпитер", "Нептун"]},
+            {q: "Спутник Земли?", a: "Луна", o: ["МКС", "Луна", "Солнце"]},
+            {q: "Сколько планет в системе?", a: "8", o: ["7", "8", "9"]},
+            {q: "Планета с огромными кольцами?", a: "Сатурн", o: ["Сатурн", "Уран", "Юпитер"]},
+            {q: "Первый на Луне?", a: "Нил Армстронг", o: ["Гагарин", "Нил Армстронг", "Леонов"]},
+            {q: "Наша галактика?", a: "Млечный Путь", o: ["Андромеда", "Млечный Путь", "Орион"]},
+            {q: "Самая жаркая планета?", a: "Венера", o: ["Меркурий", "Венера", "Марс"]}
+        ]
+    };
+
+    let score1 = 0, score2 = 0, answered = 0, name1, name2, currentBtn;
+
+    function start() {
+        name1 = document.getElementById('t1I').value || "Команда 1";
+        name2 = document.getElementById('t2I').value || "Команда 2";
+        document.getElementById('n1').innerText = name1;
+        document.getElementById('n2').innerText = name2;
+        document.getElementById('btn-give-t1').innerText = name1;
+        document.getElementById('btn-give-t2').innerText = name2;
+        document.getElementById('setup').classList.add('hidden');
+        document.getElementById('quiz').classList.remove('hidden');
+        render();
+    }
+
+    function render() {
+        const grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        for (let cat in database) {
+            const col = document.createElement('div');
+            col.className = 'category-col';
+            col.innerHTML = `<div class="cat-name">${cat}</div>`;
+            
+            // Рандомизация: перемешиваем и берем 10
+            let shuffled = database[cat].sort(() => 0.5 - Math.random());
+            shuffled.forEach(qObj => {
+                const btn = document.createElement('button');
+                btn.className = 'q-btn';
+                btn.innerText = '?';
+                btn.onclick = () => openQ(cat, qObj, btn);
+                col.appendChild(btn);
+            });
+            grid.appendChild(col);
+        }
+    }
+
+    function openQ(cat, obj, btn) {
+        if (btn.classList.contains('used')) return;
+        currentBtn = btn;
+        document.getElementById('modal-cat').innerText = cat;
+        document.getElementById('modal-q').innerText = obj.q;
+        const optsDiv = document.getElementById('modal-opts');
+        optsDiv.innerHTML = '';
+        optsDiv.style.pointerEvents = 'auto';
+
+        // Перемешиваем варианты ответов
+        const options = [...obj.o].sort(() => 0.5 - Math.random());
+
+        options.forEach(opt => {
+            const d = document.createElement('div');
+            d.className = 'option-item';
+            d.innerText = opt;
+            d.onclick = () => {
+                optsDiv.style.pointerEvents = 'none';
+                if (opt === obj.a) {
+                    d.classList.add('correct');
+                } else {
+                    d.classList.add('wrong');
+                    // Подсвечиваем правильный при ошибке
+                    Array.from(optsDiv.children).forEach(child => {
+                        if (child.innerText === obj.a) child.classList.add('correct');
+                    });
+                }
+            };
+            optsDiv.appendChild(d);
+        });
+        document.getElementById('modal').classList.remove('hidden');
+    }
+
+    function givePoint(team) {
+        if (team === 1) { score1++; document.getElementById('s1').innerText = score1; }
+        if (team === 2) { score2++; document.getElementById('s2').innerText = score2; }
+        currentBtn.classList.add('used');
+        answered++;
+        document.getElementById('modal').classList.add('hidden');
+        if (answered === 40) showWin();
+    }
+
+    function showWin() {
+        const win = document.getElementById('final-win');
+        win.classList.remove('hidden');
+        if (score1 > score2) win.innerText = `Победа: ${name1}`;
+        else if (score2 > score1) win.innerText = `Победа: ${name2}`;
+        else win.innerText = "Ничья!";
+    }
+</script>
+</body>
+</html>
